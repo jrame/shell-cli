@@ -1,0 +1,8 @@
+/target/
+
+# Local agent instructions
+/AGENTS.md
+
+# Local connection settings (use config.example.json as the template)
+/.config/shell-cli/config.json
+/config.json

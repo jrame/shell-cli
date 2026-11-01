@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "lab": {
+      "host": "user@lab",
+      "identity": null,
+      "port": 22,
+      "jump": null,
+      "local_forward": [],
+      "remote_forward": [],
+      "dynamic_forward": [],
+      "ssh_config": null
+    }
+  }
+}

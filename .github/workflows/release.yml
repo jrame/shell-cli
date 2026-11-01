@@ -1,0 +1,65 @@
+name: Windows release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of the existing release to build
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Build and upload shell.exe (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_REPO: ${{ github.repository }}
+      CARGO_TERM_COLOR: always
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: -C target-feature=+crt-static
+
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Install Rust stable
+        run: rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc
+
+      - name: Test
+        run: cargo +stable test --locked --release --target x86_64-pc-windows-msvc
+
+      - name: Build executable
+        run: cargo +stable build --locked --release --target x86_64-pc-windows-msvc --bin shell
+
+      - name: Check executable and generate checksum
+        run: |
+          $exe = 'target/x86_64-pc-windows-msvc/release/shell.exe'
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  shell.exe" | Set-Content -LiteralPath "$exe.sha256" -Encoding ascii
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$env:RELEASE_TAG" `
+            target/x86_64-pc-windows-msvc/release/shell.exe `
+            target/x86_64-pc-windows-msvc/release/shell.exe.sha256 `
+            --clobber
